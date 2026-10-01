@@ -1,11 +1,13 @@
 // @includepath "~/Documents/;%USERPROFILE%Documents";
 // @include "basiljs/basil.js";
 
-// Uses the document that is open in InDesign as the template and creates
-// one copy per folder in source/: the text from text.txt goes into the
-// text box labelled "text", the first image into the image box labelled
-// "image". Every further image gets a copy of the previous box, moved
-// 10 px left and 10 px down. Each copy is exported as PDF and stays open.
+// Fills the document that is open in InDesign – the template – with one
+// page per folder in source/: the first folder overwrites page 1, every
+// further folder gets a new page with the layout of page 1.
+// On each page, the text from text.txt goes into the text box labelled
+// "text", the first image into the image box labelled "image". Every
+// further image gets a copy of the previous box, moved 10 px left and
+// 10 px down. The whole document is exported as one PDF and stays open.
 
 var offsetX = -10; // px, negative = to the left
 var offsetY = 10;  // px, positive = down
@@ -16,7 +18,7 @@ var sourceFolder;
 function setup() {
     // the template is the document that was active when the script started
     templateDoc = doc();
-    if (!hasLabel(templateDoc, "text") || !hasLabel(templateDoc, "image")) {
+    if (!findLabelled(page(1), "text") || !findLabelled(page(1), "image")) {
         templateDoc = null;
         return;
     }
@@ -26,50 +28,65 @@ function setup() {
 function draw() {
     if (!templateDoc) {
         alert("Open the template first (e.g. template/template.idml).\n\n" +
-            "It needs a text frame with the script label \"text\" and a " +
-            "graphic frame with the script label \"image\".");
+            "Its first page needs a text frame with the script label \"text\" " +
+            "and a graphic frame with the script label \"image\".");
         return;
     }
     if (!sourceFolder) {
         alert("No folder selected.");
         return;
     }
-
-    var outputFolder = new Folder(sourceFolder.parent.fsName + "/output");
-    outputFolder.create();
-
-    // export all pages, regardless of what was used last time
-    app.pdfExportPreferences.pageRange = PageRange.ALL_PAGES;
-
-    // a snapshot of the template – every item opens its own copy of it
-    var templateCopy = new File(Folder.temp.fsName + "/basil_template_copy.indd");
-    templateDoc.saveACopy(templateCopy);
+    units(PX);
 
     // every subfolder is one item
     var itemFolders = sourceFolder.getFiles(function(file) {
         return file instanceof Folder;
     });
     itemFolders.sort(byName);
-
-    for (var i = 0; i < itemFolders.length; i++) {
-        buildDocument(templateCopy, itemFolders[i], outputFolder);
+    if (itemFolders.length === 0) {
+        alert("No folders found in " + sourceFolder.fsName);
+        return;
     }
-    templateCopy.remove();
 
-    alert(itemFolders.length + " PDF(s) saved in\n" + outputFolder.fsName +
-        "\n\nThe documents stay open, the template is unchanged.");
+    var templatePage = page(1);
+
+    // clean up a previous run: image copies on page 1, pages after it
+    var firstPageItems = templatePage.allPageItems;
+    for (var c = firstPageItems.length - 1; c >= 0; c--) {
+        if (firstPageItems[c].label === "image-copy") firstPageItems[c].remove();
+    }
+    if (pageCount() > 1 &&
+        confirm("The document has " + pageCount() + " pages. Remove pages 2–" +
+            pageCount() + " (e.g. from a previous run)?")) {
+        while (pageCount() > 1) removePage(pageCount());
+    }
+
+    // copy the empty template page first, then fill the pages
+    var itemPages = [templatePage];
+    for (var i = 1; i < itemFolders.length; i++) {
+        itemPages.push(templatePage.duplicate(LocationOptions.AT_END));
+    }
+    for (var j = 0; j < itemFolders.length; j++) {
+        fillPage(itemPages[j], itemFolders[j]);
+    }
+    page(1);
+
+    // one PDF of the whole document, named after it
+    var outputFolder = new Folder(sourceFolder.parent.fsName + "/output");
+    outputFolder.create();
+    var pdfFile = new File(outputFolder.fsName + "/" + templateDoc.name.replace(/\.[^.]*$/, "") + ".pdf");
+    app.pdfExportPreferences.pageRange = PageRange.ALL_PAGES;
+    savePDF(pdfFile);
+
+    alert(itemFolders.length + " page(s) filled, PDF saved as\n" + pdfFile.fsName +
+        "\n\nThe document stays open.");
 }
 
-// One copy of the template for one folder: fill it, export it, leave it open
-function buildDocument(templateCopy, itemFolder, outputFolder) {
-    // OPEN_COPY opens the file as a new, untitled document
-    doc(app.open(templateCopy, true, OpenOptions.OPEN_COPY));
-    units(PX);
-
-    // the boxes are found by their script label
-    // (Window → Utilities → Script Label)
-    var textBox = labels("text")[0];
-    var imageBox = labels("image")[0];
+// Fills one page with the text and images of one folder
+function fillPage(pg, itemFolder) {
+    page(pg); // basil's current page – duplicate() copies onto it
+    var textBox = findLabelled(pg, "text");
+    var imageBox = findLabelled(pg, "image");
 
     // ---- text: the formatting comes from the paragraph styles in the template ----
     var textFile = new File(itemFolder.fsName + "/text.txt");
@@ -91,23 +108,22 @@ function buildDocument(templateCopy, itemFolder, outputFolder) {
     for (var i = 0; i < images.length; i++) {
         if (i > 0) {
             imageBox = duplicate(imageBox); // the copy lies on top of the previous box
+            imageBox.label = "image-copy";  // so only the original box counts as "image"
             transform(imageBox, "translate", [offsetX, offsetY]);
         }
         imageBox.place(images[i]);
         imageBox.fit(FitOptions.FILL_PROPORTIONALLY); // fill the box, crop the rest
         imageBox.fit(FitOptions.CENTER_CONTENT);
     }
-
-    savePDF(new File(outputFolder.fsName + "/" + itemFolder.name + ".pdf"));
-    // the document stays open, so the result can be checked and refined
 }
 
-// true if a page item in the document carries the given script label
-function hasLabel(d, name) {
-    for (var i = 0; i < d.pageItems.length; i++) {
-        if (d.pageItems[i].label === name) return true;
+// The first page item on a page with the given script label
+// (Window → Utilities → Script Label), or null
+function findLabelled(pg, name) {
+    for (var i = 0; i < pg.allPageItems.length; i++) {
+        if (pg.allPageItems[i].label === name) return pg.allPageItems[i].getElements()[0];
     }
-    return false;
+    return null;
 }
 
 // Reads a UTF-8 text file. Lines are joined into paragraphs,

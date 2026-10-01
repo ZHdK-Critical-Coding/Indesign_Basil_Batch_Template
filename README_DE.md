@@ -4,13 +4,15 @@
 
 Ein InDesign-Script, das eine Layoutvorlage mit Inhalt füllt: Das in
 InDesign geöffnete Dokument ist die Vorlage. Für jeden Ordner in `source/`
-erstellt das Script eine Kopie davon, setzt den Text aus `text.txt` in die
-Textbox und die Bilder in die Bildbox und exportiert ein PDF. Die Kopien
-bleiben geöffnet, die Vorlage bleibt unverändert. Jedes weitere Bild bekommt eine Kopie der Box, 10 px nach links und
-10 px nach unten verschoben; die Bilder stapeln sich so wie Karten. Die
-Gestaltung steckt in der Vorlage – sie wird in InDesign geändert, ohne den
-Code anzufassen. Geschrieben mit [basil.js](https://basiljs2.netlify.app),
-einer Bibliothek, die die Idee von Processing nach InDesign bringt.
+füllt es eine Seite – der erste Ordner überschreibt Seite 1, jeder weitere
+bekommt eine neue Seite mit dem Layout von Seite 1 – und exportiert das
+ganze Dokument als ein PDF. Der Text aus `text.txt` kommt in die Textbox,
+die Bilder in die Bildbox; jedes weitere Bild bekommt eine Kopie der Box,
+10 px nach links und 10 px nach unten verschoben, sodass sich die Bilder
+wie Karten stapeln. Die Gestaltung steckt in der Vorlage – sie wird in
+InDesign geändert, ohne den Code anzufassen. Geschrieben mit
+[basil.js](https://basiljs2.netlify.app), einer Bibliothek, die die Idee von
+Processing nach InDesign bringt.
 
 ## Installation
 
@@ -64,27 +66,35 @@ source/
 1. **Zuerst die Vorlage öffnen**: `template/template.idml` (oder eine
    eigene Vorlage) in InDesign öffnen. **Das Script verwendet das Dokument
    als Vorlage, das beim Start geöffnet und aktiv ist.**
+2. 1. **Zuerst die Vorlage öffnen**: `template/template.idml` (oder eine
+   eigene Vorlage) in InDesign öffnen. **Das Script arbeitet direkt im
+   Dokument, das beim Start geöffnet und aktiv ist**, und übernimmt
+   dessen aktuelle Einstellungen – Seitenformat, Formate, Rahmen, auch
+   eben gemachte, nicht gespeicherte Änderungen.
 2. Im Scripts-Panel auf `batch_template.jsx` doppelklicken und den Ordner
    `source` wählen.
 
-Für jeden Ordner erzeugt das Script aus der Vorlage ein neues, unbenanntes
-Dokument, füllt es und speichert `output/glacier.pdf`,
-`output/harbour.pdf` … in einem Ordner `output` neben `source`. Bestehende
-PDFs werden überschrieben.
+Das Script füllt **Seite 1 mit dem ersten Ordner** und überschreibt, was
+dort war, und **fügt für jeden weiteren Ordner eine Seite hinzu**, jeweils
+mit dem Layout von Seite 1. Danach speichert es das ganze Dokument als ein
+PDF in einem Ordner `output` neben `source`, benannt nach dem Dokument
+(`output/template.pdf`). Das Dokument bleibt offen – prüfen, von Hand
+anpassen, als `.indd` speichern.
 
-**Die Dokumente werden nicht geschlossen**: Nach dem Durchlauf ist pro
-Ordner ein Dokument offen, um das Layout zu prüfen, von Hand anzupassen,
-als `.indd` zu speichern oder nochmals zu exportieren. Die Vorlage selbst
-wird nicht verändert. Bei vielen Ordnern sind entsprechend viele Dokumente
-offen – mit *Datei → Alle schliessen* (Cmd/Ctrl+Alt+Shift+W) schliessen
-und *Nicht speichern* wählen.
+Ein weiterer Durchlauf im selben Dokument überschreibt Seite 1 erneut: Die
+Bildkopien des letzten Durchlaufs auf Seite 1 werden entfernt, und hat das
+Dokument mehr als eine Seite, fragt das Script, ob die Seiten 2 bis Ende
+zuerst entfernt werden sollen. Um die Vorlage unverändert zu behalten,
+`template.idml` für jeden Durchlauf neu öffnen (IDML öffnet sich immer als
+neues, unbenanntes Dokument) oder eine gefüllte Version mit *Datei →
+Speichern unter* sichern.
 
 ### Die Vorlage ändern
 
 Jedes geöffnete Dokument kann die Vorlage sein – `template/template.idml`
 ändern und das Script direkt ausführen, oder das eigene Layout für später
 als `.indd`, `.indt` oder IDML speichern (*Datei → Kopie speichern…*,
-Format *InDesign Markup (IDML)*). Die Vorlage braucht:
+Format *InDesign Markup (IDML)*). Seite 1 der Vorlage braucht:
 
 - einen Textrahmen mit dem Skriptetikett `text`,
 - einen Grafikrahmen mit dem Skriptetikett `image`,
@@ -104,34 +114,36 @@ die Bibliothek eingebunden ist.
 - **`setup()`**: `doc()` gibt das aktive Dokument zurück – das ist die
   Vorlage. (Ist kein Dokument offen, legt basil ein leeres an; es hat
   keine etikettierten Rahmen, also bricht das Script mit einer Meldung
-  ab.) `hasLabel()` prüft, ob beide Rahmen vorhanden sind, danach fragt
+  ab.) `findLabelled()` prüft, ob Seite 1 beide Rahmen hat, danach fragt
   `Folder.selectDialog()` nach dem Ordner `source`.
-- **`draw()`**: legt den Ordner `output` an, stellt den PDF-Export auf
-  alle Seiten und speichert mit `saveACopy()` einen Schnappschuss der
-  Vorlage in den temporären Ordner. Dann ruft es für jeden Unterordner
-  `buildDocument()` auf und löscht den Schnappschuss am Schluss.
-- **`buildDocument()` → Kopie**: `app.open(…, true,
-  OpenOptions.OPEN_COPY)` öffnet den Schnappschuss als neues, unbenanntes
-  Dokument; die Vorlage ändert sich also nie. `doc()` sagt basil, mit
-  diesem Dokument zu arbeiten, `units(PX)` macht `offsetX` / `offsetY` zu
-  Pixelwerten. `labels("text")[0]` und `labels("image")[0]` finden die
-  zwei Boxen über ihr Skriptetikett.
-- **`buildDocument()` → Text**: `readParagraphs()` liest `text.txt` als
-  UTF-8; die Absätze, verbunden mit `\r` (dem Absatztrenner von InDesign),
-  ersetzen den Platzhaltertext. `applyParagraphStyle()` formatiert die
-  ganze Textabfolge mit `Body` und den ersten Absatz mit `Title` – das
-  Aussehen ist in der Vorlage festgelegt, nicht im Code. Ist der Text zu
-  lang für die Box, erscheint eine Meldung in der Konsole (`println()`).
-- **`buildDocument()` → Bilder**: Das erste Bild kommt in die Box der
-  Vorlage. Für jedes weitere Bild kopiert `duplicate()` die vorherige Box
-  (die Kopie liegt obenauf), und `transform(…, "translate", [offsetX,
-  offsetY])` verschiebt sie. `place()` setzt das Bild ein,
-  `FitOptions.FILL_PROPORTIONALLY` füllt das Quadrat und beschneidet, was
-  übersteht; mit `FitOptions.PROPORTIONALLY` ist stattdessen das ganze
-  Bild zu sehen. Für andere Kaskaden `offsetX` und `offsetY` oben im
-  Script ändern, z. B. `offsetX = 10`, um nach rechts zu versetzen.
-- **`buildDocument()` → Export**: `savePDF()` exportiert mit den zuletzt
-  verwendeten PDF-Einstellungen. Das Dokument bleibt offen; um es
-  automatisch zu schliessen (z. B. bei hunderten Ordnern), nach
-  `savePDF()` die Zeile `close(false);` ergänzen – sie schliesst ohne zu
-  speichern.
+- **`draw()` → Aufräumen**: `units(PX)` macht `offsetX` / `offsetY` zu
+  Pixelwerten. Bildkopien eines früheren Durchlaufs auf Seite 1 (Etikett
+  `image-copy`) werden entfernt; Seiten nach Seite 1 entfernt
+  `removePage()`, wenn man bestätigt.
+- **`draw()` → Seiten**: Zuerst kopiert
+  `templatePage.duplicate(LocationOptions.AT_END)` die noch leere Seite 1
+  einmal pro weiterem Ordner – so beginnt jede Seite mit demselben Layout.
+  Erst dann füllt `fillPage()` Seite für Seite.
+- **`fillPage()` → Text**: `findLabelled()` sucht auf dieser Seite die
+  Rahmen mit den Skriptetiketten `text` und `image`. `readParagraphs()`
+  liest `text.txt` als UTF-8; die Absätze, verbunden mit `\r` (dem
+  Absatztrenner von InDesign), ersetzen den Platzhaltertext.
+  `applyParagraphStyle()` formatiert den Text mit `Body` und den ersten
+  Absatz mit `Title` – das Aussehen ist in der Vorlage festgelegt, nicht
+  im Code. Ist der Text zu lang für die Box, erscheint eine Meldung in der
+  Konsole (`println()`).
+- **`fillPage()` → Bilder**: Das erste Bild kommt in die Box der Vorlage.
+  Für jedes weitere Bild kopiert `duplicate()` die vorherige Box auf die
+  aktuelle Seite – gesetzt mit `page(pg)` –, und `transform(…,
+  "translate", [offsetX, offsetY])` verschiebt sie. Die Kopie bekommt das
+  Etikett `image-copy`, damit nur das Original als `image` zählt.
+  `place()` setzt das Bild ein, `FitOptions.FILL_PROPORTIONALLY` füllt das
+  Quadrat und beschneidet, was übersteht; mit `FitOptions.PROPORTIONALLY`
+  ist stattdessen das ganze Bild zu sehen. Für andere Kaskaden `offsetX`
+  und `offsetY` oben im Script ändern, z. B. `offsetX = 10`, um nach
+  rechts zu versetzen.
+- **Export**: `savePDF()` exportiert alle Seiten mit den zuletzt
+  verwendeten PDF-Einstellungen. Das Dokument wird nicht geschlossen. Für
+  ein PDF pro Ordner stattdessen `app.pdfExportPreferences.pageRange` auf
+  die Seitenzahl setzen (z. B. `"2"`) und `savePDF()` in der Schleife
+  aufrufen.
