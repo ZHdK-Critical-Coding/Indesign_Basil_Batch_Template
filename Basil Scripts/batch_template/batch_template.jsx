@@ -4,8 +4,9 @@
 // Fills the document that is open in InDesign – the template – with one
 // page per folder in source/: the first folder overwrites page 1, every
 // further folder gets a new page with the layout of page 1.
-// On each page, the text from text.txt goes into the text box labelled
-// "text", the first image into the image box labelled "image". Every
+// On each page, the first line of text.txt goes into the frame labelled
+// "title", the rest into the frame labelled "text", the first image into
+// the frame labelled "image". Every
 // further image gets a copy of the previous box, moved 10 px left and
 // 10 px down. The whole document is exported as one PDF and stays open.
 
@@ -18,7 +19,8 @@ var sourceFolder;
 function setup() {
     // the template is the document that was active when the script started
     templateDoc = doc();
-    if (!findLabelled(page(1), "text") || !findLabelled(page(1), "image")) {
+    if (!findLabelled(page(1), "title") || !findLabelled(page(1), "text") ||
+        !findLabelled(page(1), "image")) {
         templateDoc = null;
         return;
     }
@@ -28,8 +30,8 @@ function setup() {
 function draw() {
     if (!templateDoc) {
         alert("Open the template first (e.g. template/template.idml).\n\n" +
-            "Its first page needs a text frame with the script label \"text\" " +
-            "and a graphic frame with the script label \"image\".");
+            "Its first page needs three frames with the script labels " +
+            "\"title\", \"text\" and \"image\" (Window → Utilities → Script Label).");
         return;
     }
     if (!sourceFolder) {
@@ -85,15 +87,19 @@ function draw() {
 // Fills one page with the text and images of one folder
 function fillPage(pg, itemFolder) {
     page(pg); // basil's current page – duplicate() copies onto it
+    var titleBox = findLabelled(pg, "title");
     var textBox = findLabelled(pg, "text");
     var imageBox = findLabelled(pg, "image");
 
     // ---- text: the formatting comes from the placeholder text in the template ----
     var textFile = new File(itemFolder.fsName + "/text.txt");
     if (textFile.exists) {
-        fillText(textBox.parentStory, readParagraphs(textFile));
-        if (textBox.overflows) {
-            println(itemFolder.name + ": the text does not fit into the text box.");
+        var paragraphs = readParagraphs(textFile);
+        // the first paragraph is the title, the rest goes into the text box
+        replaceText(titleBox, paragraphs[0] || "");
+        replaceText(textBox, paragraphs.slice(1).join("\r"));
+        if (titleBox.overflows || textBox.overflows) {
+            println(itemFolder.name + ": the text does not fit into its box.");
         }
     }
 
@@ -115,32 +121,15 @@ function fillPage(pg, itemFolder) {
     }
 }
 
-// Replaces the placeholder text and keeps its formatting: the title replaces
-// the first paragraph, the body everything from the second paragraph on.
-// Replaced text takes on the formatting of the text it replaces – paragraph
-// styles as well as fonts, sizes or colours set directly in the template.
-function fillText(story, paragraphs) {
-    var title = paragraphs[0] || "";
-    var body = paragraphs.slice(1).join("\r");
-
-    // the body first, so the position of the first paragraph stays the same
-    if (story.paragraphs.length > 1) {
-        var bodyRange = story.texts.itemByRange(
-            story.paragraphs[1].insertionPoints[0], story.insertionPoints[-1]);
-        bodyRange.contents = body;
-    } else if (body) {
-        // no body placeholder: append it, formatted like the title
-        story.insertionPoints[-1].contents = "\r" + body;
-    }
-
-    // the title: the characters of the first paragraph, without its return
-    var first = story.paragraphs[0];
-    var count = first.characters.length;
-    if (count > 0 && first.characters[count - 1].contents === "\r") count--;
-    if (count > 0) {
-        first.characters.itemByRange(0, count - 1).contents = title;
+// Replaces the text of a frame and keeps its formatting: new text takes on
+// the formatting of the text it replaces – paragraph styles as well as
+// fonts, sizes or colours set directly in the template.
+function replaceText(frame, str) {
+    var story = frame.parentStory;
+    if (story.characters.length > 0) {
+        story.texts[0].contents = str;
     } else {
-        first.insertionPoints[0].contents = title;
+        story.insertionPoints[0].contents = str;
     }
 }
 

@@ -6,8 +6,9 @@ An InDesign script that fills a layout template with content: the
 document that is open in InDesign is the template. For every folder in
 `source/` it fills one page – the first folder overwrites page 1, every
 further folder gets a new page with the layout of page 1 – and exports the
-whole document as one PDF. The text from `text.txt` goes into the text
-box, the images into the image box; every further image gets a copy of the
+whole document as one PDF. The template has three boxes: the first line
+of `text.txt` goes into the title box, the rest into the text box, the
+images into the image box; every further image gets a copy of the image
 box, moved 10 px to the left and 10 px down, so the images pile up like a
 stack of cards. The design lives in the template – change it in InDesign,
 without touching the code. Written with
@@ -53,7 +54,7 @@ The template and the source material:
 
 ```
 template/
-  template.idml    A5 page with a text box and a 5 × 5 cm image box
+  template.idml    A5 page with a title box, a text box and a 5 × 5 cm image box
 source/
   glacier/
     text.txt       first line: title; an empty line starts a new paragraph
@@ -94,8 +95,10 @@ and run the script directly, or save your own layout as `.indd`, `.indt`
 or IDML (*File → Save a Copy…*, format *InDesign Markup (IDML)*) for
 later. Page 1 of the template needs:
 
-- a text frame with the script label `text`,
-- a graphic frame with the script label `image`.
+- a text frame with the script label `title` – for the first line of
+  `text.txt`,
+- a text frame with the script label `text` – for the rest,
+- a graphic frame with the script label `image` – for the images.
 
 Size, position, colours and everything else are up to you.
 
@@ -104,8 +107,8 @@ Size, position, colours and everything else are up to you.
 1. Open the panel *Window → Utilities → Script Label*.
 2. Select the frame with the **Selection tool** (black arrow, V) – not
    with the Text tool.
-3. Type the label into the panel: `text` or `image`, lowercase, without
-   spaces or a line break.
+3. Type the label into the panel: `title`, `text` or `image`, lowercase,
+   without spaces or a line break.
 4. **Click on an empty spot of the page.** The label is only stored when
    the panel loses focus; clicking another frame directly can give that
    frame the label instead.
@@ -113,13 +116,13 @@ Size, position, colours and everything else are up to you.
 
 The name of a frame in the *Layers* panel is not its script label;
 renaming it there has no effect on the script. The frames in
-`template.idml` already have both labels.
+`template.idml` already have their labels.
 
-**The placeholder text sets the look of the text**: its first paragraph
-stands for the title, its second paragraph for the body. Format them the
-way the result should look – with paragraph styles or directly (font,
-size, colour …); the new text takes on exactly that formatting. All body
-paragraphs look like the second placeholder paragraph.
+**The placeholder text sets the look of the text**: format the text in
+the `title` and `text` boxes the way the result should look – with
+paragraph styles or directly (font, size, colour …); the new text takes on
+exactly that formatting. All paragraphs in the text box look like the
+first placeholder paragraph in it.
 
 ## Coding Help
 
@@ -130,7 +133,7 @@ basil calls both automatically once the library is included.
 - **`setup()`**: `doc()` returns the active document – this is the
   template. (If no document is open, basil creates an empty one; it has no
   labelled frames, so the script stops with a message.) `findLabelled()`
-  checks that page 1 has both frames, then `Folder.selectDialog()` asks
+  checks that page 1 has all three frames, then `Folder.selectDialog()` asks
   for the `source` folder.
 - **`draw()` → clean up**: `units(PX)` makes `offsetX` / `offsetY` pixel
   values. Image copies of a previous run on page 1 (label `image-copy`)
@@ -140,15 +143,14 @@ basil calls both automatically once the library is included.
   copies the still empty page 1 once per further folder – so every page
   starts with the same layout. Only then `fillPage()` fills page by page.
 - **`fillPage()` → text**: `findLabelled()` looks for the frames with the
-  script labels `text` and `image` on this page. `readParagraphs()` reads
-  `text.txt` as UTF-8; the paragraphs, joined with `\r` (InDesign's
-  paragraph separator), go to `fillText()`.
-- **`fillText()`**: replaces the placeholder text without touching its
-  formatting. The body replaces the range from the second paragraph to the
-  end of the story (`story.texts.itemByRange(…)`), then the title replaces
-  the characters of the first paragraph, without its paragraph return.
-  Replaced text takes on the formatting of the text it replaces – so the
-  look is defined in the template, not in the code. (Applying paragraph
+  script labels `title`, `text` and `image` on this page.
+  `readParagraphs()` reads `text.txt` as UTF-8. The first paragraph goes
+  to the title box, the others – joined with `\r` (InDesign's paragraph
+  separator) – to the text box.
+- **`replaceText()`**: replaces the whole text of a frame
+  (`story.texts[0].contents`). Replaced text takes on the formatting of
+  the text it replaces – so the look is defined in the template, not in
+  the code. (Applying paragraph
   styles from the script, e.g. with `applyParagraphStyle()`, would reset
   formatting that was set directly in the template.) If the text is too
   long for the box, a message appears in the console (`println()`).
