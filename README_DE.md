@@ -2,10 +2,11 @@
 
 [English](README.md)
 
-Ein InDesign-Script, das eine Layoutvorlage mit Inhalt füllt: Für jeden
-Ordner in `source/` öffnet es `template/template.idml`, setzt den Text aus
-`text.txt` in die Textbox und die Bilder in die Bildbox und exportiert ein
-PDF. Jedes weitere Bild bekommt eine Kopie der Box, 10 px nach links und
+Ein InDesign-Script, das eine Layoutvorlage mit Inhalt füllt: Das in
+InDesign geöffnete Dokument ist die Vorlage. Für jeden Ordner in `source/`
+erstellt das Script eine Kopie davon, setzt den Text aus `text.txt` in die
+Textbox und die Bilder in die Bildbox und exportiert ein PDF. Die Kopien
+bleiben geöffnet, die Vorlage bleibt unverändert. Jedes weitere Bild bekommt eine Kopie der Box, 10 px nach links und
 10 px nach unten verschoben; die Bilder stapeln sich so wie Karten. Die
 Gestaltung steckt in der Vorlage – sie wird in InDesign geändert, ohne den
 Code anzufassen. Geschrieben mit [basil.js](https://basiljs2.netlify.app),
@@ -60,18 +61,30 @@ source/
     ...
 ```
 
-Im Scripts-Panel auf `batch_template.jsx` doppelklicken und den Ordner
-`source` wählen. Das Script findet `template/template.idml` daneben (sonst
-fragt es nach einer Vorlage) und speichert `output/glacier.pdf`,
+1. **Zuerst die Vorlage öffnen**: `template/template.idml` (oder eine
+   eigene Vorlage) in InDesign öffnen. **Das Script verwendet das Dokument
+   als Vorlage, das beim Start geöffnet und aktiv ist.**
+2. Im Scripts-Panel auf `batch_template.jsx` doppelklicken und den Ordner
+   `source` wählen.
+
+Für jeden Ordner erzeugt das Script aus der Vorlage ein neues, unbenanntes
+Dokument, füllt es und speichert `output/glacier.pdf`,
 `output/harbour.pdf` … in einem Ordner `output` neben `source`. Bestehende
 PDFs werden überschrieben.
 
+**Die Dokumente werden nicht geschlossen**: Nach dem Durchlauf ist pro
+Ordner ein Dokument offen, um das Layout zu prüfen, von Hand anzupassen,
+als `.indd` zu speichern oder nochmals zu exportieren. Die Vorlage selbst
+wird nicht verändert. Bei vielen Ordnern sind entsprechend viele Dokumente
+offen – mit *Datei → Alle schliessen* (Cmd/Ctrl+Alt+Shift+W) schliessen
+und *Nicht speichern* wählen.
+
 ### Die Vorlage ändern
 
-`template/template.idml` in InDesign öffnen, das Layout ändern und wieder
-als IDML speichern (*Datei → Kopie speichern…*, Format *InDesign Markup
-(IDML)*), oder als InDesign-Vorlage (`.indt`, dann diese wählen, wenn das
-Script danach fragt). Das Script braucht:
+Jedes geöffnete Dokument kann die Vorlage sein – `template/template.idml`
+ändern und das Script direkt ausführen, oder das eigene Layout für später
+als `.indd`, `.indt` oder IDML speichern (*Datei → Kopie speichern…*,
+Format *InDesign Markup (IDML)*). Die Vorlage braucht:
 
 - einen Textrahmen mit dem Skriptetikett `text`,
 - einen Grafikrahmen mit dem Skriptetikett `image`,
@@ -88,16 +101,21 @@ JavaScript-Dialekt). Ein Basil-Script definiert `draw()` und optional
 `setup()`, das einmal davor läuft; basil ruft beide automatisch auf, sobald
 die Bibliothek eingebunden ist.
 
-- **`setup()`**: fragt mit `Folder.selectDialog()` nach dem Ordner
-  `source` und sucht daneben `template/template.idml`;
-  `File.openDialog()` ist die Ausweichlösung.
+- **`setup()`**: `doc()` gibt das aktive Dokument zurück – das ist die
+  Vorlage. (Ist kein Dokument offen, legt basil ein leeres an; es hat
+  keine etikettierten Rahmen, also bricht das Script mit einer Meldung
+  ab.) `hasLabel()` prüft, ob beide Rahmen vorhanden sind, danach fragt
+  `Folder.selectDialog()` nach dem Ordner `source`.
 - **`draw()`**: legt den Ordner `output` an, stellt den PDF-Export auf
-  alle Seiten und ruft für jeden Unterordner `buildDocument()` auf.
-- **`buildDocument()` → Vorlage**: `app.open()` öffnet die IDML als neues,
-  unbenanntes Dokument; die Vorlage selbst ändert sich also nie. `doc()`
-  sagt basil, mit diesem Dokument zu arbeiten, `units(PX)` macht
-  `offsetX` / `offsetY` zu Pixelwerten. `labels("text")[0]` und
-  `labels("image")[0]` finden die zwei Boxen über ihr Skriptetikett.
+  alle Seiten und speichert mit `saveACopy()` einen Schnappschuss der
+  Vorlage in den temporären Ordner. Dann ruft es für jeden Unterordner
+  `buildDocument()` auf und löscht den Schnappschuss am Schluss.
+- **`buildDocument()` → Kopie**: `app.open(…, true,
+  OpenOptions.OPEN_COPY)` öffnet den Schnappschuss als neues, unbenanntes
+  Dokument; die Vorlage ändert sich also nie. `doc()` sagt basil, mit
+  diesem Dokument zu arbeiten, `units(PX)` macht `offsetX` / `offsetY` zu
+  Pixelwerten. `labels("text")[0]` und `labels("image")[0]` finden die
+  zwei Boxen über ihr Skriptetikett.
 - **`buildDocument()` → Text**: `readParagraphs()` liest `text.txt` als
   UTF-8; die Absätze, verbunden mit `\r` (dem Absatztrenner von InDesign),
   ersetzen den Platzhaltertext. `applyParagraphStyle()` formatiert die
@@ -113,5 +131,7 @@ die Bibliothek eingebunden ist.
   Bild zu sehen. Für andere Kaskaden `offsetX` und `offsetY` oben im
   Script ändern, z. B. `offsetX = 10`, um nach rechts zu versetzen.
 - **`buildDocument()` → Export**: `savePDF()` exportiert mit den zuletzt
-  verwendeten PDF-Einstellungen, `close(false)` schliesst das Dokument,
-  ohne es zu speichern.
+  verwendeten PDF-Einstellungen. Das Dokument bleibt offen; um es
+  automatisch zu schliessen (z. B. bei hunderten Ordnern), nach
+  `savePDF()` die Zeile `close(false);` ergänzen – sie schliesst ohne zu
+  speichern.

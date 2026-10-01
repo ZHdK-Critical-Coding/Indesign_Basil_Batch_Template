@@ -1,31 +1,37 @@
 // @includepath "~/Documents/;%USERPROFILE%Documents";
 // @include "basiljs/basil.js";
 
-// Creates one PDF per folder in source/, based on template/template.idml:
-// the text from text.txt goes into the text box labelled "text",
-// the first image into the image box labelled "image". Every further image
-// gets a copy of the previous box, moved 10 px left and 10 px down.
+// Uses the document that is open in InDesign as the template and creates
+// one copy per folder in source/: the text from text.txt goes into the
+// text box labelled "text", the first image into the image box labelled
+// "image". Every further image gets a copy of the previous box, moved
+// 10 px left and 10 px down. Each copy is exported as PDF and stays open.
 
 var offsetX = -10; // px, negative = to the left
 var offsetY = 10;  // px, positive = down
 
+var templateDoc;
 var sourceFolder;
-var templateFile;
 
 function setup() {
-    sourceFolder = Folder.selectDialog("Select the source folder");
-    if (!sourceFolder) return;
-
-    // template/template.idml next to the source folder, or ask for it
-    templateFile = new File(sourceFolder.parent.fsName + "/template/template.idml");
-    if (!templateFile.exists) {
-        templateFile = File.openDialog("Select the InDesign template (.idml or .indt)");
+    // the template is the document that was active when the script started
+    templateDoc = doc();
+    if (!hasLabel(templateDoc, "text") || !hasLabel(templateDoc, "image")) {
+        templateDoc = null;
+        return;
     }
+    sourceFolder = Folder.selectDialog("Select the source folder");
 }
 
 function draw() {
-    if (!sourceFolder || !templateFile) {
-        alert("No source folder or template selected.");
+    if (!templateDoc) {
+        alert("Open the template first (e.g. template/template.idml).\n\n" +
+            "It needs a text frame with the script label \"text\" and a " +
+            "graphic frame with the script label \"image\".");
+        return;
+    }
+    if (!sourceFolder) {
+        alert("No folder selected.");
         return;
     }
 
@@ -35,6 +41,10 @@ function draw() {
     // export all pages, regardless of what was used last time
     app.pdfExportPreferences.pageRange = PageRange.ALL_PAGES;
 
+    // a snapshot of the template – every item opens its own copy of it
+    var templateCopy = new File(Folder.temp.fsName + "/basil_template_copy.indd");
+    templateDoc.saveACopy(templateCopy);
+
     // every subfolder is one item
     var itemFolders = sourceFolder.getFiles(function(file) {
         return file instanceof Folder;
@@ -42,17 +52,18 @@ function draw() {
     itemFolders.sort(byName);
 
     for (var i = 0; i < itemFolders.length; i++) {
-        buildDocument(itemFolders[i], outputFolder);
+        buildDocument(templateCopy, itemFolders[i], outputFolder);
     }
+    templateCopy.remove();
 
-    alert(itemFolders.length + " PDF(s) saved in\n" + outputFolder.fsName);
+    alert(itemFolders.length + " PDF(s) saved in\n" + outputFolder.fsName +
+        "\n\nThe documents stay open, the template is unchanged.");
 }
 
-// One document from the template for one folder: fill it, export it, close it
-function buildDocument(itemFolder, outputFolder) {
-    // an .idml (or .indt) opens as a new, untitled document –
-    // the template itself stays unchanged
-    doc(app.open(templateFile));
+// One copy of the template for one folder: fill it, export it, leave it open
+function buildDocument(templateCopy, itemFolder, outputFolder) {
+    // OPEN_COPY opens the file as a new, untitled document
+    doc(app.open(templateCopy, true, OpenOptions.OPEN_COPY));
     units(PX);
 
     // the boxes are found by their script label
@@ -88,7 +99,15 @@ function buildDocument(itemFolder, outputFolder) {
     }
 
     savePDF(new File(outputFolder.fsName + "/" + itemFolder.name + ".pdf"));
-    close(false); // close without saving an .indd
+    // the document stays open, so the result can be checked and refined
+}
+
+// true if a page item in the document carries the given script label
+function hasLabel(d, name) {
+    for (var i = 0; i < d.pageItems.length; i++) {
+        if (d.pageItems[i].label === name) return true;
+    }
+    return false;
 }
 
 // Reads a UTF-8 text file. Lines are joined into paragraphs,

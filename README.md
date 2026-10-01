@@ -2,10 +2,11 @@
 
 [Deutsch](README_DE.md)
 
-An InDesign script that fills a layout template with content: for every
-folder in `source/` it opens `template/template.idml`, puts the text from
-`text.txt` into the text box and the images into the image box, and
-exports a PDF. Every further image gets a copy of the box, moved 10 px to
+An InDesign script that fills a layout template with content: the
+document that is open in InDesign is the template. For every folder in
+`source/` the script makes a copy of it, puts the text from `text.txt` into
+the text box and the images into the image box, and exports a PDF. The
+copies stay open, the template stays unchanged. Every further image gets a copy of the box, moved 10 px to
 the left and 10 px down, so the images pile up like a stack of cards. The
 design lives in the template – change it in InDesign, without touching the
 code. Written with [basil.js](https://basiljs2.netlify.app), a library that
@@ -60,18 +61,28 @@ source/
     ...
 ```
 
-Double-click `batch_template.jsx` in the Scripts panel and choose the
-`source` folder. The script finds `template/template.idml` next to it (if
-not, it asks for a template), and saves `output/glacier.pdf`,
-`output/harbour.pdf` … in a folder `output` next to `source`. Existing
-PDFs are overwritten.
+1. **Open the template first**: open `template/template.idml` in
+   InDesign (or your own template). **The script uses the document that is
+   open and active when you start it as the template.**
+2. Double-click `batch_template.jsx` in the Scripts panel and choose the
+   `source` folder.
+
+For every folder the script creates a new, untitled document from the
+template, fills it and saves `output/glacier.pdf`, `output/harbour.pdf` …
+in a folder `output` next to `source`. Existing PDFs are overwritten.
+
+**The documents are not closed**: after the run, one document per folder
+is open, so you can check the layout, adjust it by hand, save it as
+`.indd` or export it again. The template itself is not changed. With many
+folders, many documents open at once – close them with *File → Close All*
+(Cmd/Ctrl+Alt+Shift+W) and choose *Don't Save*.
 
 ### Changing the template
 
-Open `template/template.idml` in InDesign, change the layout and save it
-again as IDML (*File → Save a Copy…*, format *InDesign Markup (IDML)*), or
-as an InDesign template (`.indt`, then choose it when the script asks).
-The script needs:
+Any open document can be the template – change `template/template.idml`
+and run the script directly, or save your own layout as `.indd`, `.indt`
+or IDML (*File → Save a Copy…*, format *InDesign Markup (IDML)*) for
+later. The template needs:
 
 - a text frame with the script label `text`,
 - a graphic frame with the script label `image`,
@@ -87,16 +98,20 @@ Scripts are written in ExtendScript (an old dialect of JavaScript). A basil
 script defines `draw()` and optionally `setup()`, which runs once before it;
 basil calls both automatically once the library is included.
 
-- **`setup()`**: asks for the `source` folder with
-  `Folder.selectDialog()` and looks for `template/template.idml` next to
-  it; `File.openDialog()` is the fallback.
+- **`setup()`**: `doc()` returns the active document – this is the
+  template. (If no document is open, basil creates an empty one; it has
+  no labelled frames, so the script stops with a message.) `hasLabel()`
+  checks that both frames exist, then `Folder.selectDialog()` asks for
+  the `source` folder.
 - **`draw()`**: creates the `output` folder, sets the PDF export to all
-  pages and calls `buildDocument()` for every subfolder.
-- **`buildDocument()` → template**: `app.open()` opens the IDML as a new,
-  untitled document, so the template itself never changes. `doc()` tells
-  basil to work with it, `units(PX)` makes `offsetX` / `offsetY` pixel
-  values. `labels("text")[0]` and `labels("image")[0]` find the two boxes
-  by their script label.
+  pages and saves a snapshot of the template with `saveACopy()` into the
+  temporary folder. Then it calls `buildDocument()` for every subfolder
+  and deletes the snapshot at the end.
+- **`buildDocument()` → copy**: `app.open(…, true,
+  OpenOptions.OPEN_COPY)` opens the snapshot as a new, untitled document,
+  so the template never changes. `doc()` tells basil to work with it,
+  `units(PX)` makes `offsetX` / `offsetY` pixel values. `labels("text")[0]`
+  and `labels("image")[0]` find the two boxes by their script label.
 - **`buildDocument()` → text**: `readParagraphs()` reads `text.txt` as
   UTF-8; the paragraphs, joined with `\r` (InDesign's paragraph
   separator), replace the placeholder text. `applyParagraphStyle()`
@@ -113,4 +128,6 @@ basil calls both automatically once the library is included.
   Change `offsetX` and `offsetY` at the top of the script for other
   cascades, e.g. `offsetX = 10` to move to the right.
 - **`buildDocument()` → export**: `savePDF()` exports with the last used
-  PDF settings, `close(false)` closes the document without saving it.
+  PDF settings. The document stays open; to close it automatically (e.g.
+  for hundreds of folders), add `close(false);` after `savePDF()` – it
+  closes without saving.
