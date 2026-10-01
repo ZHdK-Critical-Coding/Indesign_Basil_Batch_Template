@@ -97,12 +97,18 @@ als `.indd`, `.indt` oder IDML speichern (*Datei → Kopie speichern…*,
 Format *InDesign Markup (IDML)*). Seite 1 der Vorlage braucht:
 
 - einen Textrahmen mit dem Skriptetikett `text`,
-- einen Grafikrahmen mit dem Skriptetikett `image`,
-- die Absatzformate `Title` (erster Absatz) und `Body` (der Rest).
+- einen Grafikrahmen mit dem Skriptetikett `image`.
 
 Skriptetiketten setzt man unter *Fenster → Hilfsprogramme →
 Skriptetikett*: Rahmen auswählen, Etikett eintippen, ausserhalb des Panels
-klicken. Grösse, Position, Schrift, Farben und alles andere sind frei.
+klicken. Grösse, Position, Farben und alles andere sind frei.
+
+**Der Platzhaltertext bestimmt das Aussehen des Textes**: Sein erster
+Absatz steht für den Titel, sein zweiter für den Fliesstext. Beide so
+formatieren, wie das Ergebnis aussehen soll – mit Absatzformaten oder
+direkt (Schrift, Grösse, Farbe …); der neue Text übernimmt genau diese
+Formatierung. Alle Absätze des Fliesstexts sehen aus wie der zweite
+Platzhalterabsatz.
 
 ## Coding-Hilfe
 
@@ -127,11 +133,17 @@ die Bibliothek eingebunden ist.
 - **`fillPage()` → Text**: `findLabelled()` sucht auf dieser Seite die
   Rahmen mit den Skriptetiketten `text` und `image`. `readParagraphs()`
   liest `text.txt` als UTF-8; die Absätze, verbunden mit `\r` (dem
-  Absatztrenner von InDesign), ersetzen den Platzhaltertext.
-  `applyParagraphStyle()` formatiert den Text mit `Body` und den ersten
-  Absatz mit `Title` – das Aussehen ist in der Vorlage festgelegt, nicht
-  im Code. Ist der Text zu lang für die Box, erscheint eine Meldung in der
-  Konsole (`println()`).
+  Absatztrenner von InDesign), gehen an `fillText()`.
+- **`fillText()`**: ersetzt den Platzhaltertext, ohne seine Formatierung
+  anzutasten. Der Fliesstext ersetzt den Bereich vom zweiten Absatz bis
+  zum Ende des Textes (`story.texts.itemByRange(…)`), danach ersetzt der
+  Titel die Zeichen des ersten Absatzes ohne dessen Absatzende. Ersetzter
+  Text übernimmt die Formatierung des Textes, den er ersetzt – das
+  Aussehen ist also in der Vorlage festgelegt, nicht im Code.
+  (Absatzformate aus dem Script zuzuweisen, z. B. mit
+  `applyParagraphStyle()`, würde direkt in der Vorlage gesetzte
+  Formatierung zurücksetzen.) Ist der Text zu lang für die Box, erscheint
+  eine Meldung in der Konsole (`println()`).
 - **`fillPage()` → Bilder**: Das erste Bild kommt in die Box der Vorlage.
   Für jedes weitere Bild kopiert `duplicate()` die vorherige Box auf die
   aktuelle Seite – gesetzt mit `page(pg)` –, und `transform(…,

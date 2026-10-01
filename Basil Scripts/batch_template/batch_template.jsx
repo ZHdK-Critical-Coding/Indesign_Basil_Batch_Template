@@ -88,12 +88,10 @@ function fillPage(pg, itemFolder) {
     var textBox = findLabelled(pg, "text");
     var imageBox = findLabelled(pg, "image");
 
-    // ---- text: the formatting comes from the paragraph styles in the template ----
+    // ---- text: the formatting comes from the placeholder text in the template ----
     var textFile = new File(itemFolder.fsName + "/text.txt");
     if (textFile.exists) {
-        textBox.contents = readParagraphs(textFile).join("\r");
-        applyParagraphStyle(textBox.parentStory, "Body");
-        applyParagraphStyle(textBox.paragraphs[0], "Title");
+        fillText(textBox.parentStory, readParagraphs(textFile));
         if (textBox.overflows) {
             println(itemFolder.name + ": the text does not fit into the text box.");
         }
@@ -114,6 +112,35 @@ function fillPage(pg, itemFolder) {
         imageBox.place(images[i]);
         imageBox.fit(FitOptions.FILL_PROPORTIONALLY); // fill the box, crop the rest
         imageBox.fit(FitOptions.CENTER_CONTENT);
+    }
+}
+
+// Replaces the placeholder text and keeps its formatting: the title replaces
+// the first paragraph, the body everything from the second paragraph on.
+// Replaced text takes on the formatting of the text it replaces – paragraph
+// styles as well as fonts, sizes or colours set directly in the template.
+function fillText(story, paragraphs) {
+    var title = paragraphs[0] || "";
+    var body = paragraphs.slice(1).join("\r");
+
+    // the body first, so the position of the first paragraph stays the same
+    if (story.paragraphs.length > 1) {
+        var bodyRange = story.texts.itemByRange(
+            story.paragraphs[1].insertionPoints[0], story.insertionPoints[-1]);
+        bodyRange.contents = body;
+    } else if (body) {
+        // no body placeholder: append it, formatted like the title
+        story.insertionPoints[-1].contents = "\r" + body;
+    }
+
+    // the title: the characters of the first paragraph, without its return
+    var first = story.paragraphs[0];
+    var count = first.characters.length;
+    if (count > 0 && first.characters[count - 1].contents === "\r") count--;
+    if (count > 0) {
+        first.characters.itemByRange(0, count - 1).contents = title;
+    } else {
+        first.insertionPoints[0].contents = title;
     }
 }
 

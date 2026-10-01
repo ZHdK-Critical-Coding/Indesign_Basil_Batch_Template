@@ -95,12 +95,17 @@ or IDML (*File → Save a Copy…*, format *InDesign Markup (IDML)*) for
 later. Page 1 of the template needs:
 
 - a text frame with the script label `text`,
-- a graphic frame with the script label `image`,
-- the paragraph styles `Title` (first paragraph) and `Body` (the rest).
+- a graphic frame with the script label `image`.
 
 Script labels are set in *Window → Utilities → Script Label*: select the
-frame, type the label, click outside the panel. Size, position, font,
-colours and everything else are up to you.
+frame, type the label, click outside the panel. Size, position, colours
+and everything else are up to you.
+
+**The placeholder text sets the look of the text**: its first paragraph
+stands for the title, its second paragraph for the body. Format them the
+way the result should look – with paragraph styles or directly (font,
+size, colour …); the new text takes on exactly that formatting. All body
+paragraphs look like the second placeholder paragraph.
 
 ## Coding Help
 
@@ -123,11 +128,16 @@ basil calls both automatically once the library is included.
 - **`fillPage()` → text**: `findLabelled()` looks for the frames with the
   script labels `text` and `image` on this page. `readParagraphs()` reads
   `text.txt` as UTF-8; the paragraphs, joined with `\r` (InDesign's
-  paragraph separator), replace the placeholder text.
-  `applyParagraphStyle()` formats the story with `Body` and the first
-  paragraph with `Title` – the look is defined in the template, not in the
-  code. If the text is too long for the box, a message appears in the
-  console (`println()`).
+  paragraph separator), go to `fillText()`.
+- **`fillText()`**: replaces the placeholder text without touching its
+  formatting. The body replaces the range from the second paragraph to the
+  end of the story (`story.texts.itemByRange(…)`), then the title replaces
+  the characters of the first paragraph, without its paragraph return.
+  Replaced text takes on the formatting of the text it replaces – so the
+  look is defined in the template, not in the code. (Applying paragraph
+  styles from the script, e.g. with `applyParagraphStyle()`, would reset
+  formatting that was set directly in the template.) If the text is too
+  long for the box, a message appears in the console (`println()`).
 - **`fillPage()` → images**: the first image goes into the template box.
   For every further image, `duplicate()` copies the previous box onto the
   current page – set with `page(pg)` – and `transform(…, "translate",
