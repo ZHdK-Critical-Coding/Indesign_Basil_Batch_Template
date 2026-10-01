@@ -99,9 +99,24 @@ Format *InDesign Markup (IDML)*). Seite 1 der Vorlage braucht:
 - einen Textrahmen mit dem Skriptetikett `text`,
 - einen Grafikrahmen mit dem Skriptetikett `image`.
 
-Skriptetiketten setzt man unter *Fenster → Hilfsprogramme →
-Skriptetikett*: Rahmen auswählen, Etikett eintippen, ausserhalb des Panels
-klicken. Grösse, Position, Farben und alles andere sind frei.
+Grösse, Position, Farben und alles andere sind frei.
+
+#### Ein Skriptetikett setzen
+
+1. Das Panel *Fenster → Hilfsprogramme → Skriptetikett* öffnen.
+2. Den Rahmen mit dem **Auswahlwerkzeug** (schwarzer Pfeil, V) auswählen
+   – nicht mit dem Textwerkzeug.
+3. Das Etikett ins Panel tippen: `text` oder `image`, klein geschrieben,
+   ohne Leerzeichen oder Zeilenumbruch.
+4. **Auf eine leere Stelle der Seite klicken.** Das Etikett wird erst
+   gespeichert, wenn das Panel den Fokus verliert; wer direkt einen
+   anderen Rahmen anklickt, gibt das Etikett unter Umständen diesem.
+5. Zur Kontrolle den Rahmen nochmals auswählen – das Panel zeigt sein
+   Etikett.
+
+Der Name eines Rahmens im Panel *Ebenen* ist nicht sein Skriptetikett;
+ihn dort umzubenennen, hat keine Wirkung auf das Script. Die Rahmen in
+`template.idml` haben beide Etiketten schon.
 
 **Der Platzhaltertext bestimmt das Aussehen des Textes**: Sein erster
 Absatz steht für den Titel, sein zweiter für den Fliesstext. Beide so

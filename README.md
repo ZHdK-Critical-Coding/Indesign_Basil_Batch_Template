@@ -97,9 +97,23 @@ later. Page 1 of the template needs:
 - a text frame with the script label `text`,
 - a graphic frame with the script label `image`.
 
-Script labels are set in *Window → Utilities → Script Label*: select the
-frame, type the label, click outside the panel. Size, position, colours
-and everything else are up to you.
+Size, position, colours and everything else are up to you.
+
+#### Setting a script label
+
+1. Open the panel *Window → Utilities → Script Label*.
+2. Select the frame with the **Selection tool** (black arrow, V) – not
+   with the Text tool.
+3. Type the label into the panel: `text` or `image`, lowercase, without
+   spaces or a line break.
+4. **Click on an empty spot of the page.** The label is only stored when
+   the panel loses focus; clicking another frame directly can give that
+   frame the label instead.
+5. To check, select the frame again – the panel shows its label.
+
+The name of a frame in the *Layers* panel is not its script label;
+renaming it there has no effect on the script. The frames in
+`template.idml` already have both labels.
 
 **The placeholder text sets the look of the text**: its first paragraph
 stands for the title, its second paragraph for the body. Format them the
