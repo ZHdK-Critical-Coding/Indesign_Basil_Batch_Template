@@ -4,9 +4,9 @@
 // Fills the document that is open in InDesign – the template – with one
 // page per folder in source/: the first folder overwrites page 1, every
 // further folder gets a new page with the layout of page 1.
-// On each page, the first line of text.txt goes into the frame labelled
-// "title", the rest into the frame labelled "text", the first image into
-// the frame labelled "image". Every
+// On each page, the text of the folder's .txt file (any name; if there
+// are several, the first in alphabetical order) goes into the frame
+// labelled "text", the first image into the frame labelled "image". Every
 // further image gets a copy of the previous box, moved 10 px left and
 // 10 px down. The whole document is exported as one PDF and stays open.
 
@@ -19,8 +19,7 @@ var sourceFolder;
 function setup() {
     // the template is the document that was active when the script started
     templateDoc = doc();
-    if (!findLabelled(page(1), "title") || !findLabelled(page(1), "text") ||
-        !findLabelled(page(1), "image")) {
+    if (!findLabelled(page(1), "text") || !findLabelled(page(1), "image")) {
         templateDoc = null;
         return;
     }
@@ -30,8 +29,8 @@ function setup() {
 function draw() {
     if (!templateDoc) {
         alert("Open the template first (e.g. template/template.idml).\n\n" +
-            "Its first page needs three frames with the script labels " +
-            "\"title\", \"text\" and \"image\" (Window → Utilities → Script Label).");
+            "Its first page needs two frames with the script labels " +
+            "\"text\" and \"image\" (Window → Utilities → Script Label).");
         return;
     }
     if (!sourceFolder) {
@@ -87,20 +86,18 @@ function draw() {
 // Fills one page with the text and images of one folder
 function fillPage(pg, itemFolder) {
     page(pg); // basil's current page – duplicate() copies onto it
-    var titleBox = findLabelled(pg, "title");
     var textBox = findLabelled(pg, "text");
     var imageBox = findLabelled(pg, "image");
 
     // ---- text: the formatting comes from the placeholder text in the template ----
-    var textFile = new File(itemFolder.fsName + "/text.txt");
-    if (textFile.exists) {
-        var paragraphs = readParagraphs(textFile);
-        // the first paragraph is the title, the rest goes into the text box
-        replaceText(titleBox, paragraphs[0] || "");
-        replaceText(textBox, paragraphs.slice(1).join("\r"));
-        if (titleBox.overflows || textBox.overflows) {
-            println(itemFolder.name + ": the text does not fit into its box.");
-        }
+    // any .txt file, the first one in alphabetical order; no file = empty box
+    var textFiles = itemFolder.getFiles(function(file) {
+        return file instanceof File && /\.txt$/i.test(file.name);
+    });
+    textFiles.sort(byName);
+    replaceText(textBox, textFiles.length ? readParagraphs(textFiles[0]).join("\r") : "");
+    if (textBox.overflows) {
+        println(itemFolder.name + ": the text does not fit into its box.");
     }
 
     // ---- images: the first one into the template box, then a cascade of copies ----

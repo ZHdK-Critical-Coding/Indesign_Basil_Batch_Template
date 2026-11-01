@@ -6,9 +6,8 @@ Ein InDesign-Script, das eine Layoutvorlage mit Inhalt füllt: Das in
 InDesign geöffnete Dokument ist die Vorlage. Für jeden Ordner in `source/`
 füllt es eine Seite – der erste Ordner überschreibt Seite 1, jeder weitere
 bekommt eine neue Seite mit dem Layout von Seite 1 – und exportiert das
-ganze Dokument als ein PDF. Die Vorlage hat drei Boxen: Die erste Zeile
-von `text.txt` kommt in die Titelbox, der Rest in die Textbox, die Bilder
-in die Bildbox; jedes weitere Bild bekommt eine Kopie der Bildbox,
+ganze Dokument als ein PDF. Die Vorlage hat zwei Boxen: Der Text aus der
+`.txt`-Datei des Ordners kommt in die Textbox, die Bilder in die Bildbox; jedes weitere Bild bekommt eine Kopie der Bildbox,
 10 px nach links und 10 px nach unten verschoben, sodass sich die Bilder
 wie Karten stapeln. Die Gestaltung steckt in der Vorlage – sie wird in
 InDesign geändert, ohne den Code anzufassen. Geschrieben mit
@@ -54,10 +53,11 @@ Die Vorlage und das Ausgangsmaterial:
 
 ```
 template/
-  template.idml    A5-Seite mit Titelbox, Textbox und einer Bildbox von 5 × 5 cm
+  template.idml    A5-Seite mit einer Textbox und einer Bildbox von 5 × 5 cm
 source/
   glacier/
-    text.txt       erste Zeile: Titel; eine Leerzeile beginnt einen neuen Absatz
+    text.txt       optional, beliebiger Name mit Endung .txt (die erste wird
+                   verwendet); eine Leerzeile beginnt einen neuen Absatz
     01.jpg         Bilder (jpg, png, tif), in alphabetischer Reihenfolge gesetzt
     02.jpg
   harbour/
@@ -97,9 +97,7 @@ Jedes geöffnete Dokument kann die Vorlage sein – `template/template.idml`
 als `.indd`, `.indt` oder IDML speichern (*Datei → Kopie speichern…*,
 Format *InDesign Markup (IDML)*). Seite 1 der Vorlage braucht:
 
-- einen Textrahmen mit dem Skriptetikett `title` – für die erste Zeile
-  von `text.txt`,
-- einen Textrahmen mit dem Skriptetikett `text` – für den Rest,
+- einen Textrahmen mit dem Skriptetikett `text` – für den Text,
 - einen Grafikrahmen mit dem Skriptetikett `image` – für die Bilder.
 
 Grösse, Position, Farben und alles andere sind frei.
@@ -109,7 +107,7 @@ Grösse, Position, Farben und alles andere sind frei.
 1. Das Panel *Fenster → Hilfsprogramme → Skriptetikett* öffnen.
 2. Den Rahmen mit dem **Auswahlwerkzeug** (schwarzer Pfeil, V) auswählen
    – nicht mit dem Textwerkzeug.
-3. Das Etikett ins Panel tippen: `title`, `text` oder `image`, klein
+3. Das Etikett ins Panel tippen: `text` oder `image`, klein
    geschrieben, ohne Leerzeichen oder Zeilenumbruch.
 4. **Auf eine leere Stelle der Seite klicken.** Das Etikett wird erst
    gespeichert, wenn das Panel den Fokus verliert; wer direkt einen
@@ -121,8 +119,8 @@ Der Name eines Rahmens im Panel *Ebenen* ist nicht sein Skriptetikett;
 ihn dort umzubenennen, hat keine Wirkung auf das Script. Die Rahmen in
 `template.idml` haben ihre Etiketten schon.
 
-**Der Platzhaltertext bestimmt das Aussehen des Textes**: Den Text in den
-Boxen `title` und `text` so formatieren, wie das Ergebnis aussehen soll –
+**Der Platzhaltertext bestimmt das Aussehen des Textes**: Den Text in der
+Box `text` so formatieren, wie das Ergebnis aussehen soll –
 mit Absatzformaten oder direkt (Schrift, Grösse, Farbe …); der neue Text
 übernimmt genau diese Formatierung. Alle Absätze in der Textbox sehen aus
 wie ihr erster Platzhalterabsatz.
@@ -137,7 +135,7 @@ die Bibliothek eingebunden ist.
 - **`setup()`**: `doc()` gibt das aktive Dokument zurück – das ist die
   Vorlage. (Ist kein Dokument offen, legt basil ein leeres an; es hat
   keine etikettierten Rahmen, also bricht das Script mit einer Meldung
-  ab.) `findLabelled()` prüft, ob Seite 1 alle drei Rahmen hat, danach fragt
+  ab.) `findLabelled()` prüft, ob Seite 1 beide Rahmen hat, danach fragt
   `Folder.selectDialog()` nach dem Ordner `source`.
 - **`draw()` → Aufräumen**: `units(PX)` macht `offsetX` / `offsetY` zu
   Pixelwerten. Bildkopien eines früheren Durchlaufs auf Seite 1 (Etikett
@@ -148,10 +146,11 @@ die Bibliothek eingebunden ist.
   einmal pro weiterem Ordner – so beginnt jede Seite mit demselben Layout.
   Erst dann füllt `fillPage()` Seite für Seite.
 - **`fillPage()` → Text**: `findLabelled()` sucht auf dieser Seite die
-  Rahmen mit den Skriptetiketten `title`, `text` und `image`.
-  `readParagraphs()` liest `text.txt` als UTF-8. Der erste Absatz kommt
-  in die Titelbox, die übrigen – verbunden mit `\r` (dem Absatztrenner
-  von InDesign) – in die Textbox.
+  Rahmen mit den Skriptetiketten `text` und `image`. Die `.txt`-Dateien
+  des Ordners werden nach Namen sortiert, die erste wird verwendet, egal
+  wie sie heisst; gibt es keine, bleibt die Textbox leer.
+  `readParagraphs()` liest sie als UTF-8, die Absätze – verbunden mit `\r`
+  (dem Absatztrenner von InDesign) – kommen in die Textbox.
 - **`replaceText()`**: ersetzt den ganzen Text eines Rahmens
   (`story.texts[0].contents`). Ersetzter Text übernimmt die Formatierung
   des Textes, den er ersetzt – das Aussehen ist also in der Vorlage
